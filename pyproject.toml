@@ -1,0 +1,111 @@
+[project]
+name = "tl_model_server"
+dynamic = ["version", "dependencies"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Topic :: Software Development :: Build Tools",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+
+authors = [
+  {name = "The deathlockers developers", email = "deathlockers@proton.me"},
+]
+
+
+requires-python = ">=3.9"
+
+[build-system]
+# The lower bound is for <https://github.com/pypa/setuptools/issues/3865>.
+requires = ["setuptools>=78.1.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = false
+
+[tool.setuptools.dynamic]
+# version = {attr = "tl_model_server.__version__"}
+dependencies = {file = "requirements.txt"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+exclude = ["contrib", "docs", "tests*", "tasks"]
+
+# Descomentar para cargar los modelos guardados como pkl
+# [tool.setuptools.package-data]
+# tl_model_server = ["data/**/*.pkl"]
+
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "pylint",
+  "ruff"
+]
+
+######################################################################################
+# ruff
+#
+
+[tool.ruff]
+target-version = "py39"
+src = ["src"]
+line-length = 130
+extend-exclude = [
+    "_vendor",
+    "./build",
+    ".scratch",
+    "data",
+]
+
+[tool.ruff.lint]
+ignore = [
+    "B019",
+    "B020",
+    "B904", # Ruff enables opinionated warnings by default
+    "B905", # Ruff enables opinionated warnings by default
+    "C420", # unnecessary-dict-comprehension-for-iterable (worsens readability)
+]
+select = [
+    "ASYNC",
+    "B",
+    "C4",
+    "C90",
+    "E",
+    "F",
+    "G",
+    "I",
+    "ISC",
+    "PERF",
+    "PLE",
+    "PLR0",
+    "W",
+    "RUF100",
+    "UP",
+    "FA102",  # future-required-type-annotation
+]
+
+[tool.ruff.lint.isort]
+section-order = [
+  "future",
+  "standard-library",
+  "third-party",
+  "vendored",
+  "first-party",
+  "tests",
+  "local-folder",
+]
+
+[tool.ruff.lint.isort.sections]
+"tests" = ["tests"]
