@@ -9,4 +9,4 @@ COPY --chown=appuser:appuser . /tmp
 RUN pip install --no-cache-dir /tmp \
     && rm -rf /tmp/*
 
-CMD ["python3", "-m", "tl_producer.app"]
+CMD ["python3", "-u", "-m", "tl_model_server.app"]

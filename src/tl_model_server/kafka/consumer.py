@@ -1,7 +1,12 @@
+import asyncio
 import logging
+from typing import Any
 
 from kafka import KafkaConsumer
+from kafka.consumer.fetcher import ConsumerRecord
+
 from tl_model_server.kafka.config import KafkaConfig
+
 
 
 class Consumer:
@@ -11,45 +16,48 @@ class Consumer:
     https://kafka-python.readthedocs.io/en/master/apidoc/KafkaConsumer.html
     Kafka parameters are readed from environment variables.
     """
+
     initialized = False
     consumer = None
+
     def __init__(self, **kwargs):
         """Initialize the Kafka consumer with the given configuration parameters.
         Args:
             **kwargs: Optional configuration parameters for the Kafka consumer.
             log_alert: The Kafka topic to send messages to. Default is 'log_alert'.
         """
-        self.kafka_config = KafkaConfig()
-        
-        self.topics = kwargs['customer_logs'] if 'customer_logs' in kwargs else 'log_alert'
+        self.kafka_config = KafkaConfig(mode="consumer")
 
-    def get_message(self) -> str:
+        self.topic = kwargs["kafka_topic"] if "kafka_topic" in kwargs else "customer_logs"
+        self.setup()
+
+    def poll(self) -> dict[str, Any]:
         """Send a trace to the Kafka topic.
         Args:
             trace (str): The trace to send.
         """
-        logging.info(f"Sending trace to Kafka topic {self.topics}")
+        logging.info("Sending trace to Kafka topic %s", self.topic)
         if not self.initialized:
             raise ValueError("Kafka consumer is not initialized. Call setup() before sending messages.")
-        
-        record = self.consumer.poll(max_records=1)
 
-        if not record:
-            logging.info("No records found")
-            return None
-        
-        for topic_partition, messages in record.items():
-            for message in messages:
-                logging.info(f"Received message: {message.value}")
-                yield message.value.decode('utf-8')
+        for message in self.consumer:
+            yield message.value
 
     def setup(self):
         """Setup the Kafka consumer.
         This method initializes the Kafka consumer with the configuration parameters."""
         if self.consumer is not None:
             return
-        logging.info("Kafka consumer is not initialized. Initializing...")
-        self.consumer = KafkaConsumer(**self.kafka_config.args)
+        logging.info("Kafka conbsumer is not initialized")
+        logging.info("\tInitializing...... Kafka consumer is not initialized..")
+        self.consumer = KafkaConsumer(self.topic, **self.kafka_config.args)
+        # self.consumer.subscribe([self.topic])
+        logging.info("Kafka consumer initialized with topic: %s", self.topic)
+        logging.info("Subscribed topics: %s", self.consumer.subscription())
+        logging.info("Partitions for topic %s: %s", self.topic, self.consumer.partitions_for_topic(self.topic))
+        logging.info("Partitions assigned to the consumer: %s", self.consumer.assignment())
+        
+        
         self.initialized = True
 
     def stop(self):

@@ -1,7 +1,9 @@
 import logging
 
 from kafka import KafkaProducer
+
 from tl_model_server.kafka.config import KafkaConfig
+from tl_model_server.models.types import LogThreats
 
 
 class Producer:
@@ -11,40 +13,37 @@ class Producer:
     https://kafka-python.readthedocs.io/en/master/apidoc/KafkaProducer.html
     Kafka parameters are readed from environment variables.
     """
+
     initialized = False
     producer = None
-    client_id = None
-    def __init__(self, client_id, **kwargs):
-        self.topic = 'log_alert'
+
+    def __init__(self, **kwargs):
+        self.topic = kwargs["kafka_topic"] if "kafka_topic" in kwargs else "alert_logs"
         self.kafka_config = KafkaConfig()
-        self.client_id = client_id
         if isinstance(kwargs, dict) or isinstance(kwargs, set):
-            if 'value_serializer' in kwargs:
-                self.kafka_config.set_key('value_serializer', kwargs['value_serializer'])
+            if "value_serializer" in kwargs:
+                self.kafka_config.set_key("value_serializer", kwargs["value_serializer"])
+        self.setup()
 
-
-    def send(self, trace:str):
+    def send(self, threats: LogThreats):
         """Send a trace to the Kafka topic.
         Args:
             trace (str): The trace to send.
         """
-        logging.info(f"Sending trace to Kafka topic {self.topic}: {trace}")
+        logging.info("Sending trace to Kafka topic %s: %s", self.topic, threats)
 
         if not self.initialized:
             raise ValueError("Kafka producer is not initialized. Call setup() before sending messages.")
-        
-        raise NotImplementedError("Añade aquí tu código, cambia los parametros de envió de tramas")
-        self.producer.send(self.topic, {
-            'trace': trace,
-            'client_id': self.client_id
-        })
+
+        self.producer.send(self.topic, value=threats)
 
     def setup(self):
         """Setup the Kafka producer.
         This method initializes the Kafka producer with the configuration parameters."""
         if self.producer is not None:
             return
-        logging.info("Kafka producer is not initialized. Initializing...")
+        logging.info("Kafka producer is not initialized")
+        logging.info("\tInitializing...... Kafka producer is not initialized..")
         self.producer = KafkaProducer(**self.kafka_config.args)
         self.initialized = True
 

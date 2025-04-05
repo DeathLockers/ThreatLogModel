@@ -46,6 +46,7 @@ services:
   # Crea topics nuevos al iniciar el contenedor
   kafka-init-topics:
     image: confluentinc/cp-kafka:7.2.1
+    container_name: kafka-scripts
     depends_on:
       - broker
     command: "bash -c 'echo Waiting for Kafka to be ready... && \
@@ -54,7 +55,7 @@ services:
                kafka-topics --create --topic alert_logs --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server broker:9093'"
 
   log-producer:
-    image: ghcr.io/deathlockers/tlsender
+    image: ghcr.io/deathlockers/tlsender:main
     depends_on:
     - broker
     environment:

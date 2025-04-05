@@ -1,4 +1,2 @@
 def load_models():
-    return {
-        'generic': None
-    }
+    return {"generic": None}
