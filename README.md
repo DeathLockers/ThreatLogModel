@@ -24,3 +24,23 @@ Prepara el entorno virtual local para instalar los paquetes necesarios.
    - Si necesitas trabajar con diferentes versiones de Python, puedes usar herramientas como:
      - [pyenv](https://github.com/pyenv/pyenv): Una herramienta para instalar y gestionar múltiples versiones de Python.
      - [Anaconda](https://www.anaconda.com/): Una distribución de Python para ciencia de datos que incluye herramientas para gestionar entornos.
+
+### Ejecuta entorno en local
+
+```docker compose -f .\dev\docker-compose.yml up -d```
+
+### Configura vscode
+
+Para ejecutar con F5 el codigo en vscode crea la carpeta .vscode y el archivo como se indica.
+
+```{
+    "configurations": [
+        {
+            "name": "Python Debugger: Module",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "tl_model_server"
+        }
+    ]
+}
+```
