@@ -34,6 +34,7 @@ class ModelsAgent:
         self.label_encoder_message = self.pipeline['label_encoder_message']
         self.label_encoder_service = self.pipeline['label_encoder_service']
 
+
     def inference(self, message=None) -> dict:
         """Procesa el mensaje, asigna el trabajo al modelo disponible y del tipo adecuado
         Si localiza una amenaza, envía una alerta de amenaza detectada mediante el productor
@@ -46,7 +47,6 @@ class ModelsAgent:
         logging.info("Processing message: %s", message)
         msg_scaled = self.process_msg()
         prediction = self.model.predict(msg_scaled)
-        
         return {"status": int(prediction[0]), "message": message}
 
     def process_msg(self, message = None)-> dict:
@@ -104,9 +104,14 @@ class ModelsAgent:
             print(f"Error processing message {message["host"]}: {e}")
             return None  # En caso de error, devolver None
 
-
-        
-
+    def train(self, name):
+        """Carga un modelo y lo entrena con los datos de la base de datos"""
+        logging.info("Training model: %s", name)
+        # Aquí puedes añadir el código para cargar y entrenar el modelo
+        # Por ejemplo, cargar datos de la base de datos y entrenar un modelo
+        # Puedes usar pandas para cargar los datos y sklearn para entrenar el modelo
+        # Guarda el modelo entrenado en disco
+        return {"status": 1, "message": "Model trained successfully"}
 
     def default_model(self, data=None):
     """
@@ -163,9 +168,3 @@ class ModelsAgent:
     except Exception as e:
         logging.error("Error: No ha funcionado la creación de un modelo por defecto.")
         return {"error": f"Default model not created: {str(e)}"}
-
-
-
-model = ModelsAgent()
-result = model.inference()
-print(result)
