@@ -1,6 +1,7 @@
 import os
 import sys
 import logging
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 if not __package__:
@@ -29,31 +30,13 @@ consumer = Consumer()
 # Crear productor kafka para enviar amenazas
 producer = Producer()
 
-
 # Loads the models inside this component, sends inference task to it
 model_agent = ModelsAgent()
 
+model_agent.load_model("model_v1") # Cargar el modelo que queremos usar
+
 # Gestor de guardado de amenazas en la base de datos
 log_threats = LogThreats()
-
-def inference(consume_task) -> asyncio.Future:
-    """Procesa el mensaje, asigna el trabajo al modelo disponible y del tipo adecuado"""
-    if consume_task.done():
-        return asyncio.create_task(model_agent.inference(consume_task.message))
-    else:
-        # TODO: Revisar que ha pasado, como recuperamos el error
-        logging.error("Error: Algo fue mal con el mensaje de entrada %s", consume_task)
-        return asyncio.create_task(consumer.get_message())
-
-
-def prdocue_message(inference_task) -> asyncio.Future:
-    """Produce el mensaje de salida del modelo al topic correspondiente"""
-    if inference_task.done():
-        return asyncio.create_task(producer.send(inference_task.message))
-    else:
-        # TODO: Revisar que ha pasado, como recuperamos el error
-        logging.error("Error: Algo fue mal con el mensaje de entrada %s", inference_task)
-        return asyncio.create_task(consumer.get_message())
 
 
 async def run():
@@ -69,32 +52,27 @@ async def run():
                             logging.info("Consumer couldn't find any message")
                             continue
 
+
+                        # Analizar la traza
                         threat = model_agent.inference(message) # Devuelve un dict {"status": 1, "message": message}
-                        if threat is None: # Hace falta esto realmente??
-                            logging.info("Model couldn't find any threat for messages:")
-                            logging.info(message)
-                            continue
+
+                        # Guardar mensaje en amenazas y en logs
 
                         if threat["status"] == 1:
                             logging.info("Threat detected for message: %s", message)
+                            producer.send(message)
                             # Guardar el mensaje en la base de datos
                             log_threats.save_threat(threat["message"])
-                            log_threats.commit()
                             logging.info("Threat message saved to database")
                         else:
                             logging.info("No threat detected for message: %s", message)
                             # Guardar el mensaje en la base de datos
-                            log_threats.save_log(message)
-                            log_threats.commit()
-                            logging.info("Log message saved to database")
+                        log_threats.save_log(message)
+                        logging.info("Log message saved to database")
 
                         # Enviar el mensaje al topic de amenazas
                         producer.send(threat) # Como le enviamos la amenaza a kafka??
                         logging.info("Message sent to Kafka topic")
-                except KeyboardInterrupt:
-                    logging.info("Keyboard interrupt detected, stopping sender ...")
-                    log_threats.close()
-                    break
                 except Exception as e:
                     logging.error("Error: %s while processing file messages", e)
                     continue
@@ -102,6 +80,11 @@ async def run():
             logging.error("Error: No connection to database")
     except Exception as e:
         logging.error("Error initializing sender: %s", e)
+    finally:
+        logging.info("Sender stopped")
+        if log_threats:
+            log_threats.close()
+
 
 
 if __name__ == "__main__":

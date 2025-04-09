@@ -25,17 +25,17 @@ class Producer:
                 self.kafka_config.set_key("value_serializer", kwargs["value_serializer"])
         self.setup()
 
-    def send(self, threats: LogThreats):
+    def send(self, message):
         """Send a trace to the Kafka topic.
         Args:
             trace (str): The trace to send.
         """
-        logging.info("Sending trace to Kafka topic %s: %s", self.topic, threats)
+        logging.debug("Sending trace to Kafka topic %s: %s", self.topic, message)
 
         if not self.initialized:
             raise ValueError("Kafka producer is not initialized. Call setup() before sending messages.")
 
-        self.producer.send(self.topic, value=threats)
+        self.producer.send(self.topic, message)
 
     def setup(self):
         """Setup the Kafka producer.

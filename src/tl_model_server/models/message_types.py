@@ -1,6 +1,5 @@
 import mysql.connector
 from mysql.connector import Error
-from dotenv import load_dotenv
 import os
 
 class LogThreats:
@@ -8,9 +7,6 @@ class LogThreats:
 
     def __init__(self):
         # Cargar las variables del archivo .env
-        load_dotenv()
-
-        # Obtener los valores desde el archivo .env
         self.host = os.getenv("DB_HOST")
         self.user = os.getenv("DB_USER")
         self.password = os.getenv("DB_PASSWORD")
