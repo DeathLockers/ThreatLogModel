@@ -7,6 +7,7 @@ from sklearn.discriminant_analysis import StandardScaler
 from sklearn.metrics import precision_score, accuracy_score
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
+import json
 
 model_zoo = os.environ.get("MODEL_ZOO", "src/tl_model_server/data")
 
@@ -15,12 +16,8 @@ from datetime import datetime
 import hashlib
 import logging
 
-label_encoder_message = None
-label_encoder_service = None
-scaler = None
 
-
-def process_msg(message = None)-> dict:
+def process_msg(message)-> dict:
     # Ejemplo msg: Feb 26 1:06:58	db-server-02	vsftpd	5846	1	Anonymous user from 220.135.151.1 executed: LIST
     """
     Procesa el mensaje para dejarlo en un formato correcto para que lo pueda consumir 
@@ -31,12 +28,24 @@ def process_msg(message = None)-> dict:
     Returns:
         dict: Mesnaje procesado.
     """
+    pipeline = load_model("model_v1")
+    scaler = pipeline['scaler']
+    label_encoder_message = pipeline['label_encoder_message']
+    label_encoder_service = pipeline['label_encoder_service']
 
-    # message = {"timestamp": "Feb 26 1:06:58", "host": "db-server-02", "service": "vsftpd", "pid": 5846, "message": "Anonymous user from 220.135.151.1 executed: LIST"}
-    # previous_timestamp = ""
+    parts = message.strip().split(";")
+    message = {
+        "timestamp": parts[0],
+        "host": parts[1],
+        "service": parts[2],
+        "pid": parts[3],
+        "message": parts[4]
+    }
+    print(message)
+
 
     try:
-        message['host'] = hashlib.sha256(message["host"].encode()).hexdigest()  # Utilizar 'hash' para asignar un número único a cada servidor
+        message['host'] = hash(message["host"])  # Utilizar 'hash' para asignar un número único a cada servidor
 
         # Extraer componentes de fecha y hora
         timestamp_str = message["timestamp"]
@@ -60,7 +69,15 @@ def process_msg(message = None)-> dict:
         del message["timestamp"]
         msg_scaled = scaler.transform([list(message.values())])
 
-        return msg_scaled
+        final_msg = {
+            "client_id": message["client_id"],
+            "message": msg_scaled[0],
+            "original_message": message["trace"]
+        }
+
+        print(final_msg)
+
+        return final_msg
 
     except Exception as e:
         logging.error("Error processing message %s: %s",message["host"], str(e), e)
@@ -125,20 +142,20 @@ def train(model_name, data_path):
         logging.error("Error: No ha funcionado la creación de un modelo por defecto.")
         return {"error": f"Default model not created: {str(e)}"}
 
-def load_model( model_name):
+def load_model(model_name):
     """Carga el modelo de disco"""
     logging.info("Loading model: %s", f"tl_model_server.models.{model_name}.model")
     model_path = get_joblib_path(model_name)
-
+    print(model_path)
     # Load the pipeline from the located path
     pipeline = joblib.load(model_path)
-    scaler = pipeline['scaler']
-    label_encoder_message = pipeline['label_encoder_message']
-    label_encoder_service = pipeline['label_encoder_service']
-    return pipeline['model']
+    return pipeline
+
 
 def get_joblib_path(model_name):
     """Get the path to the joblib file"""
+    script_dir = os.path.dirname(os.path.abspath(__file__)) 
+    model_zoo = os.path.join(script_dir, "../../data")
     return os.path.join(model_zoo, model_name, "pipeline.joblib")
 
 def get_data_path(model_name, data_path):

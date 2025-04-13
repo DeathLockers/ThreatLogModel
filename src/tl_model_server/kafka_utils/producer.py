@@ -2,8 +2,8 @@ import logging
 
 from kafka import KafkaProducer
 
-from tl_model_server.kafka.config import KafkaConfig
-from tl_model_server.models.types import LogThreats
+from tl_model_server.kafka_utils.config import KafkaConfig
+from tl_model_server.models.message_types import LogThreats
 
 
 class Producer:

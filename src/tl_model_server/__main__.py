@@ -18,9 +18,9 @@ load_dotenv()
 
 # Controls parallelism and concurrency of the model server
 import asyncio
-
-from tl_model_server.kafka.consumer import Consumer
-from tl_model_server.kafka.producer import Producer
+import json
+from tl_model_server.kafka_utils.consumer import Consumer
+from tl_model_server.kafka_utils.producer import Producer
 from tl_model_server.models.model_agent import ModelsAgent
 from tl_model_server.models.message_types import LogThreats
 
@@ -31,7 +31,7 @@ consumer = Consumer()
 producer = Producer()
 
 # Loads the models inside this component, sends inference task to it
-model_agent = ModelsAgent()
+model_agent = ModelsAgent("model_v1")
 
 model_agent.load_model("model_v1") # Cargar el modelo que queremos usar
 
@@ -43,39 +43,27 @@ async def run():
     """Run the sender in an asynchronous loop"""
     logging.info("Starting sender ...")
     try:
-        if log_threats.conn:
-            logging.info("Connection to database established")
-            while True:
-                try:
-                    for message in consumer.poll():
-                        if message is None:
-                            logging.info("Consumer couldn't find any message")
-                            continue
-
-
-                        # Analizar la traza
-                        threat = model_agent.inference(message) # Devuelve un dict {"status": 1, "message": message}
-
-                        # Guardar mensaje en amenazas y en logs
-
-                        if threat["status"] == 1:
-                            logging.info("Threat detected for message: %s", message)
-                            producer.send(message)
-                            # Guardar el mensaje en la base de datos
-                            log_threats.save_threat(threat["message"])
-                            logging.info("Threat message saved to database")
-                        else:
-                            logging.info("No threat detected for message: %s", message)
-                            # Guardar el mensaje en la base de datos
-                        log_threats.save_log(message)
-                        logging.info("Log message saved to database")
-
-                        # Enviar el mensaje al topic de amenazas
-                        producer.send(threat) # Como le enviamos la amenaza a kafka??
-                        logging.info("Message sent to Kafka topic")
-                except Exception as e:
-                    logging.error("Error: %s while processing file messages", e)
-                    continue
+        while True:
+            try:
+                for message in consumer.poll():
+                    if message is None:
+                        logging.info("Consumer couldn't find any message")
+                        continue
+                    
+                    trace = message["trace"]
+                    # Analizar la traza
+                    prediction_message = model_agent.inference(trace) 
+                    # Añadir client_id
+                    logging.info("contenido de la prediccion ",prediction_message)
+                    prediction_message["client_id"] = message["client_id"]
+                    # Pasar mensaje a json
+                    json_prediction = json.dumps(prediction_message)
+                    # Enviar el mensaje al topic de amenazas
+                    producer.send(json_prediction) 
+                    logging.info("Message sent to Kafka topic")
+            except Exception as e:
+                logging.error("Error: %s while processing file messages", e)
+                continue
         else:
             logging.error("Error: No connection to database")
     except Exception as e:

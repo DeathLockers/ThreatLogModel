@@ -5,7 +5,7 @@ from typing import Any
 from kafka import KafkaConsumer
 from kafka.consumer.fetcher import ConsumerRecord
 
-from tl_model_server.kafka.config import KafkaConfig
+from tl_model_server.kafka_utils.config import KafkaConfig
 
 
 
@@ -39,7 +39,7 @@ class Consumer:
         logging.info("Sending trace to Kafka topic %s", self.topic)
         if not self.initialized:
             raise ValueError("Kafka consumer is not initialized. Call setup() before sending messages.")
-
+        logging.info("Sending message")
         for message in self.consumer:
             yield message.value
 

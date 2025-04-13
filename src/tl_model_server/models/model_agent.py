@@ -14,7 +14,7 @@ class ModelsAgent:
         logging.info("Initializing ModelsAgent with model: %s", self.model_name)
         self.model_module = importlib.import_module(f"tl_model_server.models.{self.model_name}.model")
 
-    def inference(self, message=None) -> dict:
+    def inference(self, message) -> dict:
         """Procesa el mensaje, asigna el trabajo al modelo disponible y del tipo adecuado
         Si localiza una amenaza, envía una alerta de amenaza detectada mediante el productor
         Args:
@@ -23,10 +23,10 @@ class ModelsAgent:
             dict: Mensaje procesado, con la respuesta del modelo si es amenaza o no
         """
 
-        logging.info("Processing message: %s", message)
+        logging.info("Processing messages(model_agent): %s", message)
         clean_message = self.model_module.process_msg(message)  # Procesar el mensaje
         prediction = self.model.predict(clean_message)
-        return {"status": int(prediction[0]), "message": message, "clean_message": clean_message, "model": self.model_name}
+        return {"prediction": int(prediction[0]), "message": message, "model": self.model_name}
 
     def train(self, model_name, data_path):
         """
@@ -57,7 +57,7 @@ class ModelsAgent:
                 self.model_module = importlib.import_module(f"tl_model_server.models.{self.model_name}.model")
                 model_name = 1
             if self.model is None and model_name == 1:
-                self.model = self.model_module.load_model(model_name)
+                self.model = self.model_module.load_model(self.model_name)
         except Exception as e:
             logging.error("No ha funcionado la carga del modelo.")
             raise
