@@ -25,7 +25,8 @@ class ModelsAgent:
 
         logging.info("Processing messages(model_agent): %s", message)
         clean_message = self.model_module.process_msg(message)  # Procesar el mensaje
-        prediction = self.model.predict(clean_message)
+        reshaped_message = clean_message["message"].reshape(1, -1)
+        prediction = self.model["model"].predict(reshaped_message)
         return {"prediction": int(prediction[0]), "message": message, "model": self.model_name}
 
     def train(self, model_name, data_path):

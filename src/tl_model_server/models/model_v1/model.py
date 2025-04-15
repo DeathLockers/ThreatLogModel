@@ -2,38 +2,29 @@ import logging
 import os
 import joblib
 import pandas as pd
-from sklearn.calibration import LabelEncoder
-from sklearn.discriminant_analysis import StandardScaler
+from sklearn.preprocessing import OrdinalEncoder
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import precision_score, accuracy_score
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
-import json
+from datetime import datetime
+from sentence_transformers import SentenceTransformer
+import numpy as np
+from sklearn.metrics import confusion_matrix, classification_report
 
 model_zoo = os.environ.get("MODEL_ZOO", "src/tl_model_server/data")
 
-
-from datetime import datetime
-import hashlib
-import logging
+# Cargamos el modelo de embeddings
+embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
 
-def process_msg(message)-> dict:
-    # Ejemplo msg: Feb 26 1:06:58	db-server-02	vsftpd	5846	1	Anonymous user from 220.135.151.1 executed: LIST
-    """
-    Procesa el mensaje para dejarlo en un formato correcto para que lo pueda consumir 
-    el modelo.
-
-    Args:
-        message (str): Mensaje a procesar
-    Returns:
-        dict: Mesnaje procesado.
-    """
+def process_msg(message: str) -> dict:
     pipeline = load_model("model_v1")
     scaler = pipeline['scaler']
-    label_encoder_message = pipeline['label_encoder_message']
-    label_encoder_service = pipeline['label_encoder_service']
-
-    parts = message.strip().split(";")
+    encoder_service = pipeline['encoder_service']
+    original_message = message
+    logging.info("Procesando el siguiente mensaje --------> %s",message)
+    parts = message.strip().split(",")
     message = {
         "timestamp": parts[0],
         "host": parts[1],
@@ -41,125 +32,119 @@ def process_msg(message)-> dict:
         "pid": parts[3],
         "message": parts[4]
     }
-    print(message)
+
 
 
     try:
-        message['host'] = hash(message["host"])  # Utilizar 'hash' para asignar un número único a cada servidor
+        message['host'] = hash(message["host"])
 
-        # Extraer componentes de fecha y hora
         timestamp_str = message["timestamp"]
-        timestamp_format = "%b %d %H:%M:%S"  # El formato es 'Mes Día Hora:Minuto:Segundo'
-        timestamp = datetime.strptime(timestamp_str, timestamp_format)
-        # Añadir columnas
-        message["day_of_week"] = timestamp.weekday() + 1 # Del 1 al 7
+        timestamp = datetime.strptime(timestamp_str, "%b %d %H:%M:%S")
+        message["day_of_week"] = timestamp.weekday() + 1
         message["day"] = timestamp.day
         message["month"] = timestamp.month
         message["hour"] = timestamp.hour
         message["minute"] = timestamp.minute
         message["second"] = timestamp.second
 
-        # Usar label encoder para las columnas categoricas
-        msg = [message["message"]]
-        service = [message["service"]]
-        message['message'] = int(label_encoder_message.transform(msg)[0])
-        message['service'] = int(label_encoder_service.transform(service)[0])
+        # Service encoding
+        service_encoded = encoder_service.transform([[message["service"]]])[0]
 
-        # Escalamos los datos
-        del message["timestamp"]
-        msg_scaled = scaler.transform([list(message.values())])
+        # Embedding del mensaje
+        message_embedding = embedding_model.encode(message["message"])
 
-        final_msg = {
-            "client_id": message["client_id"],
-            "message": msg_scaled[0],
-            "original_message": message["trace"]
+        # Construimos el vector final
+        input_vector = np.concatenate([
+            [message['host']],
+            service_encoded,
+            [message["pid"]],
+            [message["day_of_week"], message["day"], message["month"],
+             message["hour"], message["minute"], message["second"]],
+            message_embedding  # embedding de 384 dimensiones
+        ])
+
+        # Escalado
+        input_scaled = scaler.transform([input_vector])
+
+        return {
+            "message": input_scaled[0],
+            "original_message": original_message
         }
 
-        print(final_msg)
-
-        return final_msg
-
     except Exception as e:
-        logging.error("Error processing message %s: %s",message["host"], str(e), e)
+        logging.error("Error processing message %s: %s", message["host"], str(e), e)
         raise
 
+
 def train(model_name, data_path):
-    """
-    Entrena y guarda un modelo por defecto en el caso de que no haya ninguno con el csv de logs
-    Args:
-        
-    """
-    try:
-        logging.info("Training model: %s with data in %s", model_name, data_path)
+    logging.info("Training model: %s with data in %s", model_name, data_path)
 
-        # Cargar los datos
-        df = pd.read_csv(get_data_path(model_name, data_path))
+    df = pd.read_csv(get_data_path(model_name, data_path))
 
-        label_encoder_message = LabelEncoder()
-        label_encoder_service = LabelEncoder()
-        scaler = StandardScaler()
+    encoder_service = OrdinalEncoder()
+    scaler = StandardScaler()
 
-        # Label encoding para las columnas 'message' y 'service'
-        label_encoder_message.fit(df["message"])
-        df["message"] = label_encoder_message.fit_transform(df["message"])
+    df["host"] = df["host"].apply(lambda x: hash(x))
+    df["pid"] = df["pid"].astype(int)
 
-        label_encoder_service.fit(df["service"])
-        df["service"] = label_encoder_service.fit_transform(df["service"])
+    # Codificamos el servicio
+    df[["service"]] = encoder_service.fit_transform(df[["service"]])
 
-        # Separar las características y la variable objetivo
-        y = df['target']
-        x = df.drop(['target', 'time_delta'], axis=1)
+    # Embeddings del mensaje
+    embeddings = embedding_model.encode(df["message"].tolist())
+    embeddings_df = pd.DataFrame(embeddings, columns=[f"emb_{i}" for i in range(embeddings.shape[1])])
 
-        # División del conjunto de datos en entrenamiento y prueba
-        X_train, X_test, y_train, y_test = train_test_split(x, y, test_size=0.3, random_state=42)
+    # Unimos al resto del dataset
+    x = pd.concat([df.drop(["message", "target", "time_delta"], axis=1).reset_index(drop=True), embeddings_df], axis=1)
+    y = df["target"]
 
-        # Normalización de los datos
-        X_train_scaled = scaler.fit_transform(X_train)
-        X_test_scaled = scaler.transform(X_test)
+    print("Distribución de clases:")
+    print(y.value_counts(normalize=True))  # porcentaje
 
-        # Crear y entrenar el clasificador
-        classifier = DecisionTreeClassifier(random_state=42)
-        classifier.fit(X_train_scaled, y_train)
+    X_train, X_test, y_train, y_test = train_test_split(x, y, test_size=0.3, random_state=42)
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
 
-        # Guardamos todo el pipeline y los encoders
-        joblib.dump({
-            'model': classifier,
-            'scaler': scaler,
-            'label_encoder_message': label_encoder_message,
-            'label_encoder_service': label_encoder_service
-        }, get_joblib_path(model_name))
+    print(X_train_scaled.shape)
 
-        # Realizar predicciones
-        predicciones = classifier.predict(X_test_scaled)
+    classifier = DecisionTreeClassifier(    random_state=42,
+    class_weight='balanced',
+    max_depth=10,  # Limitar la profundidad máxima
+    min_samples_split=10,  # Número mínimo de muestras para dividir un nodo
+    min_samples_leaf=5  # Número mínimo de muestras por hoja)
+    )
+    classifier.fit(X_train_scaled, y_train)
 
-        # Calcular las métricas de rendimiento
-        accuracy = accuracy_score(y_test, predicciones)
-        precision = precision_score(y_test, predicciones, average='weighted')
+    joblib.dump({
+        'model': classifier,
+        'scaler': scaler,
+        'encoder_service': encoder_service
+    }, get_joblib_path(model_name))
 
-        return accuracy, precision
+    predictions = classifier.predict(X_test_scaled)
+    accuracy = accuracy_score(y_test, predictions)
+    precision = precision_score(y_test, predictions, average='weighted')
 
-    except Exception as e:
-        logging.error("Error: No ha funcionado la creación de un modelo por defecto.")
-        return {"error": f"Default model not created: {str(e)}"}
+    print(confusion_matrix(y_test, predictions))
+    print(classification_report(y_test, predictions))
+
+
+    return accuracy, precision
+
+
 
 def load_model(model_name):
-    """Carga el modelo de disco"""
-    logging.info("Loading model: %s", f"tl_model_server.models.{model_name}.model")
+    logging.info("Loading model: %s", model_name)
     model_path = get_joblib_path(model_name)
-    print(model_path)
-    # Load the pipeline from the located path
-    pipeline = joblib.load(model_path)
-    return pipeline
+    return joblib.load(model_path)
 
 
 def get_joblib_path(model_name):
-    """Get the path to the joblib file"""
-    script_dir = os.path.dirname(os.path.abspath(__file__)) 
+    script_dir = os.path.dirname(os.path.abspath(__file__))
     model_zoo = os.path.join(script_dir, "../../data")
     return os.path.join(model_zoo, model_name, "pipeline.joblib")
 
+
 def get_data_path(model_name, data_path):
-    """Get the path to the data file"""
     relative_path = os.path.join(model_zoo, model_name, data_path)
-    absolute_path = os.path.abspath(relative_path)
-    return absolute_path
+    return os.path.abspath(relative_path)

@@ -49,18 +49,20 @@ async def run():
                     if message is None:
                         logging.info("Consumer couldn't find any message")
                         continue
-                    
-                    trace = message["trace"]
-                    # Analizar la traza
-                    prediction_message = model_agent.inference(trace) 
-                    # Añadir client_id
-                    logging.info("contenido de la prediccion ",prediction_message)
-                    prediction_message["client_id"] = message["client_id"]
-                    # Pasar mensaje a json
-                    json_prediction = json.dumps(prediction_message)
-                    # Enviar el mensaje al topic de amenazas
-                    producer.send(json_prediction) 
-                    logging.info("Message sent to Kafka topic")
+                    if (message["client_id"] == 'pr'):
+                        trace = message["trace"]
+                        # Analizar la traza
+                        prediction_message = model_agent.inference(trace) 
+                        # Añadir client_id
+                        logging.info("contenido de la prediccion %s", prediction_message)
+                        prediction_message["client_id"] = message["client_id"]
+                        # Pasar mensaje a json
+                        json_prediction = json.dumps(prediction_message)
+                        # Enviar el mensaje al topic de amenazas
+                        producer.send(json_prediction) 
+                        logging.info("Message sent to Kafka topic")
+                    else:
+                        continue
             except Exception as e:
                 logging.error("Error: %s while processing file messages", e)
                 continue
