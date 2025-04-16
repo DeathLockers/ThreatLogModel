@@ -7,8 +7,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 700M
-          cpus: '0.8'
+          memory: 500M
+          cpus: '0.5'
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_LISTENERS: "CONTROLLER://localhost:9091,HOST://0.0.0.0:9092,DOCKER://0.0.0.0:9093"
@@ -52,7 +52,7 @@ services:
     command: "bash -c 'echo Waiting for Kafka to be ready... && \
                cub kafka-ready -b broker:9093 1 30 && \
                kafka-topics --create --topic customer_logs --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server broker:9093 && \
-               kafka-topics --create --topic alert_logs --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server broker:9093'"
+               kafka-topics --create --topic predicted_logs --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server broker:9093'"
 
   log-producer:
     image: ghcr.io/deathlockers/tlsender:main
@@ -61,6 +61,10 @@ services:
     environment:
     - KAFKA_HOST=broker:9093
     - RUNNER_INTERVAL_SECONDS=15
+    # - KAFKA_CONSUMER_TOPIC=customer_logs
+    # - KAFKA_PRODUCER_TOPIC=predicted_logs
+    volumes:
+    - ./producer_logs:/data
 networks:
   default:
     name: kafka_network

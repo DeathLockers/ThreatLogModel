@@ -44,3 +44,19 @@ Para ejecutar con F5 el codigo en vscode crea la carpeta .vscode y el archivo co
     ]
 }
 ```
+
+## Estructura del mensaje `prediction_message`
+
+El mensaje `prediction_message` es un JSON que contiene la información generada por el modelo después de analizar una traza. Su estructura es la siguiente:
+
+```json
+{
+    "message": "string",          // Log de la amenaza analizada
+    "prediction": "double",      // Nivel de amenaza detectado valor de 0 a 1
+    "client_id": "string",          // Identificador del cliente asociado al mensaje
+    "model": "string"           // Modelo usado para predecir el log
+
+}
+```
+
+Asegúrate de que los campos sean consistentes con los datos generados por el modelo y que se ajusten a los requisitos de tu sistema.

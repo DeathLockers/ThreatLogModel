@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Any
+from typing import Any, Dict, Generator
 
 from kafka import KafkaConsumer
 from kafka.consumer.fetcher import ConsumerRecord
@@ -28,13 +28,15 @@ class Consumer:
         """
         self.kafka_config = KafkaConfig(mode="consumer")
 
-        self.topic = kwargs["kafka_topic"] if "kafka_topic" in kwargs else "customer_logs"
+        self.topic = kwargs["kafka_topic"]
         self.setup()
 
-    def poll(self) -> dict[str, Any]:
+    def poll(self) -> Dict[str, Any]:
         """Send a trace to the Kafka topic.
         Args:
             trace (str): The trace to send.
+        Returns:
+            Dict[str, Any]: The message sent to the Kafka topic.
         """
         logging.info("Sending trace to Kafka topic %s", self.topic)
         if not self.initialized:

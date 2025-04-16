@@ -25,10 +25,14 @@ from tl_model_server.models.model_agent import ModelsAgent
 from tl_model_server.models.message_types import LogThreats
 
 # Crear clientes kafka para consumir mensajes
-consumer = Consumer()
+consumer = Consumer(**{
+    "kafka_topic": os.getenv("KAFKA_CONSUMER_TOPIC", "customer_logs")
+})
 
 # Crear productor kafka para enviar amenazas
-producer = Producer()
+producer = Producer(**{
+    "kafka_topic": os.getenv("KAFKA_PRODUCER_TOPIC", "predicted_logs")
+})
 
 # Loads the models inside this component, sends inference task to it
 model_agent = ModelsAgent("model_v1")
@@ -49,25 +53,23 @@ async def run():
                     if message is None:
                         logging.info("Consumer couldn't find any message")
                         continue
-                    if (message["client_id"] == 'pr'):
-                        trace = message["trace"]
-                        # Analizar la traza
-                        prediction_message = model_agent.inference(trace) 
-                        # Añadir client_id
-                        logging.info("contenido de la prediccion %s", prediction_message)
-                        prediction_message["client_id"] = message["client_id"]
-                        # Pasar mensaje a json
-                        json_prediction = json.dumps(prediction_message)
-                        # Enviar el mensaje al topic de amenazas
-                        producer.send(json_prediction) 
-                        logging.info("Message sent to Kafka topic")
-                    else:
-                        continue
+
+                    trace = message["trace"]
+                    # Analizar la traza
+                    prediction_message = model_agent.inference(trace) 
+                    # Añadir client_id
+                    logging.info("contenido de la prediccion %s", prediction_message)
+                    prediction_message["client_id"] = message["client_id"]
+                    # Pasar mensaje a json
+                    # el producer ya genera los mensajes en formato json
+                    # json_prediction = json.dumps(prediction_message)
+                    
+                    # Enviar el mensaje al topic de amenazas
+                    producer.send(prediction_message) 
+                    logging.info("Message sent to Kafka topic")
             except Exception as e:
                 logging.error("Error: %s while processing file messages", e)
                 continue
-        else:
-            logging.error("Error: No connection to database")
     except Exception as e:
         logging.error("Error initializing sender: %s", e)
     finally:
