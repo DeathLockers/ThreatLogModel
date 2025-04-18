@@ -60,3 +60,77 @@ El mensaje `prediction_message` es un JSON que contiene la información generada
 ```
 
 Asegúrate de que los campos sean consistentes con los datos generados por el modelo y que se ajusten a los requisitos de tu sistema.
+
+## Ejemplo de docker compose 
+´´´#docker compose yaml
+services:
+  # Kafka broker
+  broker:
+    image: apache/kafka-native
+    container_name: kafka
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 500M
+          cpus: '0.5'
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENERS: "CONTROLLER://localhost:9091,HOST://0.0.0.0:9092,DOCKER://0.0.0.0:9093"
+      KAFKA_ADVERTISED_LISTENERS: "HOST://localhost:9092,DOCKER://broker:9093"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,DOCKER:PLAINTEXT,HOST:PLAINTEXT"
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@localhost:9091"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      # required for single node cluster
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      # broker to broker listener
+      KAFKA_INTER_BROKER_LISTENER_NAME: DOCKER
+    ports: 
+    - "9092:9092"
+    
+  # UI para ver administrar kafka
+  kafka-ui:
+    image: ghcr.io/kafbat/kafka-ui:latest
+    container_name: kafka-ui
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+          cpus: '0.5'
+    depends_on: 
+    - broker
+    environment:
+      DYNAMIC_CONFIG_ENABLED: "true"
+      KAFKA_CLUSTERS_0_NAME: "aws-kafka"
+      KAFKA_CLUSTERS_0_BOOTSTRAP_SERVERS: "broker:9093"
+    ports: 
+    - "8080:8080"
+
+  # Crea topics nuevos al iniciar el contenedor
+  kafka-init-topics:
+    image: confluentinc/cp-kafka:7.2.1
+    container_name: kafka-scripts
+    depends_on:
+      - broker
+    command: "bash -c 'echo Waiting for Kafka to be ready... && \
+               cub kafka-ready -b broker:9093 1 30 && \
+               kafka-topics --create --topic customer_logs --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server broker:9093 && \
+               kafka-topics --create --topic predicted_logs --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server broker:9093'"
+
+  log-producer:
+    image: ghcr.io/deathlockers/tlsender:main
+    depends_on:
+    - broker
+    environment:
+    - KAFKA_HOST=broker:9093
+    - RUNNER_INTERVAL_SECONDS=15
+    # - KAFKA_CONSUMER_TOPIC=customer_logs
+    # - KAFKA_PRODUCER_TOPIC=predicted_logs
+    volumes:
+    - ./producer_logs:/data
+networks:
+  default:
+    name: kafka_network
+´´´

@@ -5,3 +5,4 @@ scikit-learn~=1.6.1
 pandas~=2.2.3
 mysql-connector-python~=9.2.0
 sentence-transformers~=4.1.0
+hf_xet~=1.0.3

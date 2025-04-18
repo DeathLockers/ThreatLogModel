@@ -3,7 +3,6 @@ import logging
 from kafka import KafkaProducer
 
 from tl_model_server.kafka_utils.config import KafkaConfig
-from tl_model_server.models.message_types import LogThreats
 
 
 class Producer:
@@ -18,7 +17,7 @@ class Producer:
     producer = None
 
     def __init__(self, **kwargs):
-        self.topic = kwargs["kafka_topic"] if "kafka_topic" in kwargs else "alert_logs"
+        self.topic = kwargs["kafka_topic"] if "kafka_topic" in kwargs else "predicted_logs"
         self.kafka_config = KafkaConfig()
         if isinstance(kwargs, dict) or isinstance(kwargs, set):
             if "value_serializer" in kwargs:
@@ -42,8 +41,7 @@ class Producer:
         This method initializes the Kafka producer with the configuration parameters."""
         if self.producer is not None:
             return
-        logging.info("Kafka producer is not initialized")
-        logging.info("\tInitializing...... Kafka producer is not initialized..")
+        logging.info("\tInitializing...... Kafka producer..")
         self.producer = KafkaProducer(**self.kafka_config.args)
         self.initialized = True
 

@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 import joblib
 import pandas as pd
 from sklearn.preprocessing import OrdinalEncoder
@@ -139,10 +140,10 @@ def load_model(model_name):
     return joblib.load(model_path)
 
 
-def get_joblib_path(model_name):
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    model_zoo = os.path.join(script_dir, "../../data")
-    return os.path.join(model_zoo, model_name, "pipeline.joblib")
+def get_joblib_path(model_name: str) -> str:
+    script_dir = Path(__file__).resolve().parent.parent.parent
+    model_path = script_dir / "data" / model_name / "pipeline.joblib"
+    return str(model_path)
 
 
 def get_data_path(model_name, data_path):

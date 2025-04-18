@@ -22,7 +22,6 @@ import json
 from tl_model_server.kafka_utils.consumer import Consumer
 from tl_model_server.kafka_utils.producer import Producer
 from tl_model_server.models.model_agent import ModelsAgent
-from tl_model_server.models.message_types import LogThreats
 
 # Crear clientes kafka para consumir mensajes
 consumer = Consumer(**{
@@ -40,14 +39,12 @@ model_agent = ModelsAgent("model_v1")
 model_agent.load_model("model_v1") # Cargar el modelo que queremos usar
 
 # Gestor de guardado de amenazas en la base de datos
-log_threats = LogThreats()
-
-
 async def run():
     """Run the sender in an asynchronous loop"""
     logging.info("Starting sender ...")
     try:
         while True:
+            await asyncio.sleep(5)
             try:
                 for message in consumer.poll():
                     if message is None:
