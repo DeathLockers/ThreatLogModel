@@ -42,6 +42,9 @@ dependencies = {file = "requirements.txt"}
 where = ["src"]
 exclude = ["contrib", "docs", "tests*", "tasks"]
 
+[tool.setuptools.package-data]
+tl_model_server = ["data/model_v1/*"]
+
 # Descomentar para cargar los modelos guardados como pkl
 # [tool.setuptools.package-data]
 # tl_model_server = ["data/**/*.pkl"]

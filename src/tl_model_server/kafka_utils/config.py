@@ -24,8 +24,7 @@ class KafkaConfig:
 
     def __init__(self, mode ="producer"):
         self.args = {}
-        self.set_key("bootstrap_servers", self._get("KAFKA_HOST", raise_if_missing=True))
-        self.set_key("client_id", self._get("KAFKA_CLIENT_ID", raise_if_missing=True))
+        self.set_key("bootstrap_servers", self._get("KAFKA_HOST", "kafka:9093"))
         if mode == "producer":
             self.set_key("acks", self._get("KAFKA_ACKS", 1))
             self.set_key("value_serializer", lambda payload: json.dumps(payload).encode("utf-8") if payload else None)

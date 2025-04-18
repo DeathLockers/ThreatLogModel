@@ -1,12 +1,22 @@
-FROM python:alpine
+FROM python:3.11-slim
 
-RUN adduser -D -u 1000 -g 1000 appuser
+# Upgrade pip, setuptools, wheel
+RUN pip install --upgrade pip setuptools wheel
+
+# Create app user
+RUN groupadd -g 1000 appuser && \
+    useradd --create-home --uid 1000 --gid 1000 appuser
+
+
+# Set working directory and switch to appuser
+WORKDIR /home/appuser
+COPY --chown=appuser:appuser . /tmp
 
 USER appuser
 
-COPY --chown=appuser:appuser . /tmp
-
+# Install Python package (your local module in /tmp)
 RUN pip install --no-cache-dir /tmp \
     && rm -rf /tmp/*
 
-CMD ["python3", "-u", "-m", "tl_model_server.app"]
+# Run your module
+CMD ["python3", "-u", "-m", "tl_model_server"]
