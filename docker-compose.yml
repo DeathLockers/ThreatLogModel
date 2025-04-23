@@ -65,6 +65,35 @@ services:
     # - KAFKA_PRODUCER_TOPIC=predicted_logs
     volumes:
     - ./producer_logs:/data
+
+  # MLflow Service
+  mlflow:
+    build:
+      context: .
+      dockerfile: Dockerfile_mlflow
+    container_name: mlflow
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/home/appuser/mlruns
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: "broker:9093"
+    depends_on:
+      - broker
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx-proxy
+    ports:
+      - "80:80"
+    depends_on:
+      - mlflow
+      - kafka-ui
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/.htpasswd:/etc/nginx/.htpasswd:ro
+
 networks:
   default:
     name: kafka_network

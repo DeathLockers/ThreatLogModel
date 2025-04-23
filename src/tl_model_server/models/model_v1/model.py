@@ -1,6 +1,7 @@
 import logging
 import os
 from pathlib import Path
+from sklearn.pipeline import Pipeline
 import joblib
 import pandas as pd
 from sklearn.preprocessing import OrdinalEncoder
@@ -12,6 +13,8 @@ from datetime import datetime
 from sentence_transformers import SentenceTransformer
 import numpy as np
 from sklearn.metrics import confusion_matrix, classification_report
+import mlflow
+import mlflow.sklearn
 
 model_zoo = os.environ.get("MODEL_ZOO", "src/tl_model_server/data")
 
@@ -129,6 +132,9 @@ def train(model_name, data_path):
     print(confusion_matrix(y_test, predictions))
     print(classification_report(y_test, predictions))
 
+    # Loguear el modelo y las métricas en MLflow
+    log_to_mlflow(model_name, classifier, scaler, accuracy, precision)
+
 
     return accuracy, precision
 
@@ -149,3 +155,36 @@ def get_joblib_path(model_name: str) -> str:
 def get_data_path(model_name, data_path):
     relative_path = os.path.join(model_zoo, model_name, data_path)
     return os.path.abspath(relative_path)
+
+
+def log_to_mlflow(model_name, classifier, scaler, accuracy, precision):
+    mlflow.end_run()  # Cierra runs activos
+    mlflow.set_tracking_uri("../../../../mlruns")
+    # Crear experimento para cada cliente
+    mlflow.set_experiment(f"Models Monitoring")
+
+    model_version = model_name.split("_")[1]
+
+    # Comenzar un nuevo run
+    with mlflow.start_run(run_name=f"version_{model_version}"):
+
+        # Parámetros
+        mlflow.log_param("model_name", model_name)
+        mlflow.log_param("model_version", model_version)
+        mlflow.log_param("model_type", "DecisionTreeClassifier")
+        mlflow.log_param("max_depth", classifier.max_depth)
+        mlflow.log_param("min_samples_split", classifier.min_samples_split)
+        mlflow.log_param("min_samples_leaf", classifier.min_samples_leaf)
+
+        # Métricas
+        mlflow.log_metric("accuracy", accuracy)
+        mlflow.log_metric("precision_weighted", precision)
+
+        # Loguear el modelo como pipeline (scaler + classifier)
+        pipeline = Pipeline([('scaler', scaler), ('classifier', classifier)])
+        mlflow.sklearn.log_model(pipeline, "modelo_pipeline")
+
+        # Etiquetas
+        mlflow.set_tag("model_version", model_version)
+
+results = train("model_v1", "/home/snowy/IA/ThreatLogModel/src/tl_model_server/data/model_v1/train_logs.csv")

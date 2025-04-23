@@ -1,0 +1,15 @@
+artifact_uri: /home/snowy/IA/ThreatLogModel/src/tl_model_server/models/model_v1/../../../../mlruns/205624682839732858/adc092868ae54cd888eb91829783de79/artifacts
+end_time: 1745402761115
+entry_point_name: ''
+experiment_id: '205624682839732858'
+lifecycle_stage: active
+run_id: adc092868ae54cd888eb91829783de79
+run_name: version_v1
+run_uuid: adc092868ae54cd888eb91829783de79
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1745402757162
+status: 3
+tags: []
+user_id: snowy

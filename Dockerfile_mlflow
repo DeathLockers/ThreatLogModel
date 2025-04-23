@@ -1,0 +1,27 @@
+FROM python:3.11-slim
+
+# 1. Instala dependencias del sistema y MLflow
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --upgrade pip \
+    && pip install mlflow
+
+# 2. Crea directorio para MLflow y usuario no-root
+RUN useradd -m appuser \
+    && mkdir -p /home/appuser/mlruns \
+    && chown appuser:appuser /home/appuser/mlruns
+
+# 3. Copia el directorio local mlruns (si es necesario)
+COPY --chown=appuser:appuser ./mlruns /home/appuser/mlruns
+
+# 4. Configura entorno
+WORKDIR /home/appuser
+USER appuser
+EXPOSE 5000
+
+# 5. Comando para iniciar MLflow UI
+CMD ["mlflow", "ui", \
+     "--host", "0.0.0.0", \
+     "--port", "5000", \
+     "--default-artifact-root", "file:///home/appuser/mlruns"]

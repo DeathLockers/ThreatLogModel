@@ -1,6 +1,6 @@
 import importlib
 import logging
-
+from pathlib import Path
 
 class ModelsAgent:
     """Agent que carrega els models de disc
@@ -62,7 +62,6 @@ class ModelsAgent:
         except Exception as e:
             logging.error("No ha funcionado la carga del modelo.")
             raise
-
 
 if __name__ == "__main__":
     agent = ModelsAgent("model_v1")
